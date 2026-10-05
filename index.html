@@ -1,0 +1,1152 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ein Abenteuer für Lea</title>
+<style>
+  /* ---- design tokens ---- */
+  /* layout: one centered "storybook" card floating over an animated night sky; each stage replaces the last with a soft rise-in */
+  :root{
+    --bg-1:#1a1130;
+    --bg-2:#241a3f;
+    --card:#2c2049;
+    --card-edge:rgba(255,255,255,.10);
+    --fg:#f6efff;
+    --fg-dim:#c6b7de;
+    --gold:#ffbd5c;
+    --gold-dim:#e6a548;
+    --pink:#ff92ad;
+    --err:#ff6b7a;
+    --shadow:rgba(10,4,24,.55);
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 0%, rgba(255,146,173,.10), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 85% 15%, rgba(255,189,92,.08), transparent 60%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-2));
+    color:var(--fg);
+    font-family:'Karla', 'Segoe UI', system-ui, sans-serif;
+    min-height:100vh;
+    min-height:100dvh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding-inline:16px;
+    padding-block:32px;
+    position:relative;
+    overflow-x:hidden;
+  }
+
+  h1,h2,.display{
+    font-family:'Fraunces','Georgia',serif;
+    font-optical-sizing:auto;
+    text-wrap:balance;
+  }
+
+  #sky{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+  .star{position:absolute;background:#fff;border-radius:50%;opacity:.5;animation:twinkle 3.4s ease-in-out infinite}
+  @keyframes twinkle{0%,100%{opacity:.15}50%{opacity:.75}}
+  .heart{position:absolute;bottom:-10%;font-size:1.1rem;opacity:0;animation:driftup linear infinite;color:var(--pink)}
+  @keyframes driftup{
+    0%{transform:translateY(0) translateX(0) rotate(0deg);opacity:0}
+    8%{opacity:.55}
+    92%{opacity:.45}
+    100%{transform:translateY(-115vh) translateX(var(--drift,20px)) rotate(25deg);opacity:0}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .star,.heart{animation:none;opacity:.2}
+  }
+
+  .book{
+    position:relative;
+    z-index:1;
+    width:100%;
+    max-width:480px;
+    margin-inline:auto;
+    background:var(--card);
+    border:1px solid var(--card-edge);
+    border-radius:22px;
+    box-shadow:0 30px 70px var(--shadow), 0 2px 0 rgba(255,255,255,.04) inset;
+    padding:26px 24px 24px;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+
+  .progress-track{height:5px;border-radius:4px;background:rgba(255,255,255,.09);overflow:hidden}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--pink),var(--gold));border-radius:4px;transition:width .5s ease}
+
+  .stage{display:flex;flex-direction:column;gap:16px;align-items:stretch}
+  .stage.anim{animation:riseIn .45s ease both}
+  @keyframes riseIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @media (prefers-reduced-motion: reduce){ .stage.anim{animation:none} }
+
+  .eyebrow{
+    font-size:.72rem;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--gold-dim);
+    text-align:center;
+    font-weight:700;
+  }
+
+  h1.display{font-size:1.55rem;line-height:1.22;text-align:center;margin:0}
+  h1.display .by{display:block;font-family:'Karla',sans-serif;font-size:.85rem;color:var(--fg-dim);margin-top:8px;font-weight:400}
+  .hint{text-align:center;font-size:.82rem;color:var(--fg-dim);margin-top:-6px}
+
+  p.story{font-size:1.02rem;line-height:1.6;color:var(--fg);margin:0;text-align:center}
+  p.note{
+    font-size:.92rem;line-height:1.55;color:var(--gold);text-align:center;margin:0;
+    font-family:'Fraunces',serif;font-style:italic;
+  }
+
+  .choices{display:flex;flex-direction:column;gap:10px;margin-top:2px}
+  button{font-family:inherit;cursor:pointer;border:none}
+
+  .btn{
+    font-size:.98rem;padding:13px 18px;border-radius:13px;
+    background:rgba(255,255,255,.06);color:var(--fg);
+    border:1px solid var(--card-edge);
+    transition:background .18s,transform .12s,border-color .18s;
+    text-align:center;
+  }
+  .btn:hover{background:rgba(255,255,255,.11);border-color:rgba(255,255,255,.2)}
+  .btn:active{transform:scale(.97)}
+  .btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+  .btn-primary{background:linear-gradient(180deg,var(--gold),var(--gold-dim));color:#332005;font-weight:700;border:none}
+  .btn-primary:hover{filter:brightness(1.05)}
+  .btn-ghost{background:transparent;border:1px solid var(--card-edge);color:var(--fg-dim)}
+
+  .btn-next{align-self:center;margin-top:2px}
+
+  .tapzone{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .tapbtn{
+    width:128px;height:128px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, rgba(255,255,255,.16), rgba(255,255,255,.04));
+    border:2px solid var(--card-edge);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Fraunces',serif;font-size:2.4rem;font-weight:700;color:var(--gold);
+    transition:transform .1s;
+  }
+  .tapbtn.bump{animation:bump .28s ease}
+  @keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.15)}100%{transform:scale(1)}}
+  @media (prefers-reduced-motion: reduce){ .tapbtn.bump{animation:none} }
+  .tapcount{font-size:.85rem;color:var(--fg-dim)}
+  .baddy-pop{font-family:'Fraunces',serif;font-size:1.8rem;text-align:center;color:var(--gold);animation:pop .5s ease}
+  @keyframes pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+  @media (prefers-reduced-motion: reduce){ .baddy-pop{animation:none} }
+
+  .quiz-options{display:flex;flex-direction:column;gap:9px}
+  .error-box{
+    text-align:center;font-size:.82rem;color:var(--err);
+    background:rgba(255,107,122,.10);border:1px solid rgba(255,107,122,.35);
+    border-radius:10px;padding:9px 12px;animation:pop .35s ease;
+  }
+  @media (prefers-reduced-motion: reduce){ .error-box{animation:none} }
+  .reaction{text-align:center;font-size:.9rem;color:var(--gold);min-height:1.2em}
+
+  .game-area{
+    position:relative;height:230px;border-radius:14px;
+    background:rgba(255,255,255,.04);border:1px solid var(--card-edge);
+    overflow:hidden;
+  }
+  .falling-heart{position:absolute;font-size:1.4rem;background:none;padding:6px;line-height:1;animation:fall linear forwards}
+  @keyframes fall{from{transform:translateY(-30px)}to{transform:translateY(240px)}}
+  .score-line{text-align:center;font-size:.9rem;color:var(--fg-dim)}
+  .static-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:6px}
+  .static-heart{
+    aspect-ratio:1;border-radius:10px;font-size:1.3rem;
+    background:rgba(255,255,255,.05);border:1px solid var(--card-edge);
+    display:flex;align-items:center;justify-content:center;transition:transform .12s,opacity .2s;
+  }
+  .static-heart.popped{opacity:.15;transform:scale(.85)}
+
+  .zone{position:relative;min-height:190px;display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
+  #btnJa{min-width:140px;position:relative;overflow:hidden}
+  #btnJa .fill{position:absolute;inset:0;left:0;width:0;background:rgba(255,255,255,.35);border-radius:inherit}
+  #btnJa .label{position:relative}
+  #btnNein{min-width:110px;position:relative;background:rgba(255,255,255,.05)}
+  #btnNein.roaming{position:absolute}
+  .taunt{min-height:1.2em;text-align:center;font-size:.85rem;color:var(--fg-dim);font-style:italic}
+  .stat{text-align:center;font-size:.78rem;color:var(--fg-dim)}
+
+  .cf-board{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;background:rgba(255,255,255,.04);border:1px solid var(--card-edge);border-radius:14px;padding:8px}
+  .cf-cell{aspect-ratio:1;border-radius:50%;background:rgba(255,255,255,.07);border:1px solid var(--card-edge);padding:0;transition:background .15s}
+  .cf-cell:disabled{cursor:default}
+  .cf-cell.cf-her{background:var(--gold)}
+  .cf-cell.cf-bot{background:var(--pink)}
+
+  .chip-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .chip{
+    font-size:.88rem;padding:9px 14px;border-radius:999px;
+    background:rgba(255,255,255,.05);color:var(--fg-dim);
+    border:1px solid var(--card-edge);transition:background .15s,color .15s,border-color .15s;
+  }
+  .chip.on{background:rgba(255,189,92,.16);border-color:var(--gold-dim);color:var(--gold)}
+
+  .text-input,.cal-row input{
+    font-family:inherit;font-size:.95rem;padding:12px 14px;border-radius:12px;
+    background:rgba(255,255,255,.05);border:1px solid var(--card-edge);color:var(--fg);
+    width:100%;accent-color:var(--gold);
+  }
+  .text-input::placeholder{color:var(--fg-dim)}
+
+  @keyframes infinityPulse{
+    0%,100%{ transform:scale(.55); opacity:.18; }
+    50%{ transform:scale(1.4); opacity:.8; }
+  }
+  .hidden-infinity{
+    position:absolute; top:8px; right:10px;
+    background:none; border:none; padding:14px;
+    cursor:pointer; line-height:1; font-size:17px; color:var(--gold);
+  }
+  .hidden-infinity .glyph{ display:inline-block; animation:infinityPulse 5s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce){
+    .hidden-infinity .glyph{ animation:none; opacity:.5; transform:scale(1); }
+  }
+  .cal-row{display:flex;gap:10px;flex-wrap:wrap}
+  .cal-row input{flex:1;min-width:0}
+
+  .celebrate{align-items:center;text-align:center}
+  .celebrate h1.display{font-size:2rem;animation:pop .5s ease}
+  @media (prefers-reduced-motion: reduce){ .celebrate h1.display{animation:none} }
+  .badge{
+    display:inline-block;margin:4px auto;padding:6px 14px;border-radius:999px;
+    background:rgba(255,189,92,.14);border:1px solid rgba(255,189,92,.4);
+    color:var(--gold);font-size:.8rem;font-weight:700;letter-spacing:.03em;
+  }
+  .signature{color:var(--gold);font-family:'Fraunces',serif;font-size:1.05rem;margin-top:2px}
+  .restart{background:none;color:var(--fg-dim);font-size:.82rem;text-decoration:underline;padding:4px;margin-top:4px}
+
+  .navrow{display:flex;justify-content:space-between;margin-top:2px}
+  .navbtn{background:none;color:var(--fg-dim);font-size:.8rem;padding:4px 6px;text-decoration:underline;opacity:.7;transition:opacity .15s}
+  .navbtn:hover{opacity:1}
+  .navbtn:disabled{opacity:.25;cursor:default;text-decoration:none}
+
+  #confetti{position:fixed;inset:0;pointer-events:none;z-index:2}
+  #bursts{position:fixed;inset:0;pointer-events:none;z-index:3}
+  .burst-emoji{position:absolute;font-size:1rem;animation:burst .8s ease forwards}
+  @keyframes burst{0%{transform:translate(0,0) scale(.6);opacity:1}100%{transform:translate(var(--bx),var(--by)) scale(1.1);opacity:0}}
+
+  [hidden]{display:none!important}
+</style>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div id="sky" aria-hidden="true"></div>
+<canvas id="confetti" aria-hidden="true"></canvas>
+<div id="bursts" aria-hidden="true"></div>
+
+<main class="book" role="main">
+  <div class="progress-track" id="progressTrack" hidden><div class="progress-fill" id="progressFill"></div></div>
+  <div class="stage anim" id="stage"></div>
+  <div class="navrow">
+    <button class="navbtn" id="navPrev" type="button">← Zurück</button>
+    <button class="navbtn" id="navNext" type="button">Weiter →</button>
+  </div>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  var NAME_HER = "Lea";
+  var NAME_ME  = "Luca";
+  var TOTAL_STEPS = 9; // stages 1..9 count toward the progress bar (everything up to "the question")
+  var MAX_IDX = 10; // last reachable stage ("celebration")
+
+  var mq = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
+  var reduceMotion = !!(mq && mq.matches);
+
+  /* ================= background: stars + drifting hearts ================= */
+  function buildSky(){
+    var sky = document.getElementById('sky');
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < 40; i++){
+      var s = document.createElement('div');
+      s.className = 'star';
+      var size = (Math.random()*2 + 1).toFixed(1);
+      s.style.width = size + 'px';
+      s.style.height = size + 'px';
+      s.style.left = (Math.random()*100) + 'vw';
+      s.style.top = (Math.random()*100) + 'vh';
+      s.style.animationDelay = (Math.random()*3.4).toFixed(2) + 's';
+      frag.appendChild(s);
+    }
+    if (!reduceMotion){
+      var hearts = ['💛','💫','✨'];
+      for (var j = 0; j < 8; j++){
+        var h = document.createElement('div');
+        h.className = 'heart';
+        h.textContent = hearts[j % hearts.length];
+        h.style.left = (Math.random()*94) + 'vw';
+        h.style.setProperty('--drift', (Math.random()*60 - 30) + 'px');
+        h.style.animationDuration = (14 + Math.random()*10).toFixed(1) + 's';
+        h.style.animationDelay = (Math.random()*12).toFixed(1) + 's';
+        frag.appendChild(h);
+      }
+    }
+    sky.appendChild(frag);
+  }
+
+  /* little emoji burst at a point, for extra "mehr Bewegung" flourish on taps */
+  function spawnBurst(x, y, emoji, count){
+    if (reduceMotion) return;
+    var layer = document.getElementById('bursts');
+    count = count || 5;
+    for (var i = 0; i < count; i++){
+      var el = document.createElement('span');
+      el.className = 'burst-emoji';
+      el.textContent = emoji;
+      var angle = Math.random() * Math.PI * 2;
+      var dist = 30 + Math.random()*40;
+      el.style.setProperty('--bx', (Math.cos(angle)*dist) + 'px');
+      el.style.setProperty('--by', (Math.sin(angle)*dist - 20) + 'px');
+      el.style.left = x + 'px';
+      el.style.top = y + 'px';
+      layer.appendChild(el);
+      (function(node){ setTimeout(function(){ node.remove(); }, 850); })(el);
+    }
+  }
+  function burstFromEvent(e, emoji, count){
+    var r = e.currentTarget.getBoundingClientRect();
+    spawnBurst(r.left + r.width/2, r.top + r.height/2, emoji, count);
+  }
+
+  /* ================= state ================= */
+  var state = {
+    idx: 0, tags: [], answered: false
+  };
+  var timers = []; // active setTimeout/setInterval ids for the current stage, cleared on every render
+  function clearTimers(){ timers.forEach(function(t){ clearTimeout(t); clearInterval(t); }); timers = []; }
+  function every(fn, ms){ var id = setInterval(fn, ms); timers.push(id); return id; }
+  function after(fn, ms){ var id = setTimeout(fn, ms); timers.push(id); return id; }
+
+  /* ---- keep progress across a republish while she has the page open ---- */
+  function snapshotFn(){
+    return {
+      idx: state.idx, tags: state.tags, answered: state.answered
+    };
+  }
+  if (window.claude && window.claude.hot && typeof window.claude.hot.snapshot === 'function'){
+    window.claude.hot.snapshot(snapshotFn);
+  }
+
+  function start(savedData){
+    if (savedData && typeof savedData.idx === 'number'){
+      state.idx = savedData.idx;
+      state.tags = savedData.tags || [];
+      state.answered = !!savedData.answered;
+    }
+    buildSky();
+    wireNav();
+    render();
+  }
+
+  function renderProgress(){
+    var track = document.getElementById('progressTrack');
+    var fill = document.getElementById('progressFill');
+    if (state.idx < 1 || state.idx > TOTAL_STEPS){ track.hidden = true; return; }
+    track.hidden = false;
+    fill.style.width = Math.round((state.idx / TOTAL_STEPS) * 100) + '%';
+  }
+
+  /* manual page-through nav (for review — lets you jump between stages without replaying everything) */
+  function updateNavState(){
+    var prev = document.getElementById('navPrev');
+    var next = document.getElementById('navNext');
+    if (!prev || !next) return;
+    prev.disabled = state.idx <= 0;
+    next.disabled = state.idx >= MAX_IDX;
+  }
+  function wireNav(){
+    var prev = document.getElementById('navPrev');
+    var next = document.getElementById('navNext');
+    prev.addEventListener('click', function(){ goTo(Math.max(0, state.idx - 1)); });
+    next.addEventListener('click', function(){ goTo(Math.min(MAX_IDX, state.idx + 1)); });
+  }
+
+  function goTo(i){ state.idx = i; render(); }
+
+  function render(){
+    clearTimers();
+    removeHiddenInfinity();
+    renderProgress();
+    updateNavState();
+    var root = document.getElementById('stage');
+    root.classList.remove('anim');
+    void root.offsetWidth; // restart the rise-in animation on every stage change
+    root.classList.add('anim');
+
+    switch (state.idx){
+      case 0: return renderCover(root);
+      case 1: return renderChapter1(root);
+      case 2: return renderChapter2(root);
+      case 3: return renderChapter3(root);
+      case 4: return renderQuiz(root);
+      case 5: return renderHeartGame(root);
+      case 6: return renderConnectFour(root);
+      case 7: return renderRecap(root);
+      case 8: return renderSuspense(root);
+      case 9: return renderQuestion(root);
+      default: return renderCelebration(root);
+    }
+  }
+
+  /* ================= 0. cover ================= */
+  function renderCover(root){
+    root.innerHTML =
+      '<h1 class="display">Für ' + NAME_HER + '<span class="by">von ' + NAME_ME + '</span></h1>' +
+      '<p class="story">Manche Geschichten beginnen nicht so, wie man es erwartet.</p>' +
+      '<p class="story">Diese hier beginnt mit zwei Menschen, die vielleicht nie damit gerechnet hätten, irgendwann genau hier zu landen.</p>' +
+      '<p class="story">Was danach passiert ist, weißt nur du und ich.</p>' +
+      '<p class="story">Aber vielleicht hast du dich schon einmal gefragt, wann das alles für mich eigentlich angefangen hat.</p>' +
+      '<p class="story">Also lehn dich zurück, klick dich durch und lies die Geschichte aus meiner Sicht.</p>' +
+      '<p class="story">Denn vielleicht warst du schon viel früher etwas Besonderes für mich, als du gedacht hast.</p>' +
+      '<button class="btn btn-primary btn-next" id="go">Los geht\'s</button>';
+    root.querySelector('#go').addEventListener('click', function(){ goTo(1); });
+  }
+
+  /* ================= narrative helper ================= */
+  function renderNarrative(root, eyebrow, text, choices, onChoice){
+    var html = '<p class="eyebrow">' + eyebrow + '</p>' +
+                '<p class="story">' + text + '</p>' +
+                '<div class="choices" id="choiceRow"></div>';
+    root.innerHTML = html;
+    var row = root.querySelector('#choiceRow');
+    choices.forEach(function(c, i){
+      var b = document.createElement('button');
+      b.className = 'btn';
+      b.textContent = c.label;
+      b.addEventListener('click', function(){ onChoice(c); });
+      row.appendChild(b);
+    });
+  }
+
+  /* ================= 1. wie alles anfing ================= */
+  function renderChapter1(root){
+    root.innerHTML =
+      '<p class="eyebrow">Kapitel 1 — Wie alles anfing</p>' +
+      '<p class="story">Nachdem du mir damals gesagt hattest, dass du gerade in einer Kennenlernphase bist, bin ich eigentlich davon ausgegangen, dass sich das Thema für mich erledigt hatte. Ich hätte niemals damit gerechnet, dass wir irgendwann doch noch miteinander in Kontakt kommen — und schon gar nicht auf diese Art und Weise.</p>' +
+      '<p class="story">Ich fand dich damals schon attraktiv, aber wie du mich mittlerweile kennst, weißt du wahrscheinlich, dass ich eher ein distanzierter Mensch bin und nicht so schnell jemanden an mich heranlasse. Auch wenn du das vielleicht manchmal nicht glauben magst, habe ich für mich schon in diesem ersten Moment eine Entscheidung getroffen: Wenn ich es mit dir versuche, dann meine ich es von Anfang an ernst.</p>' +
+      '<p class="story">Und dann war da einfach deine Art. Etwas an dir hat mich von Anfang an fasziniert und mich immer mehr in deinen Bann gezogen. Deine Art zu reden, zu lachen, mit mir umzugehen — all das hat mich auf eine Weise berührt, mit der ich selbst nicht gerechnet hatte.</p>' +
+      '<p class="story">Du hast mich wirklich verzaubert.</p>' +
+      '<button class="btn btn-primary btn-next" id="toCh2">Weiter</button>';
+    root.querySelector('#toCh2').addEventListener('click', function(){ goTo(2); });
+  }
+
+  /* ================= 2. ich und du ================= */
+  function renderChapter2(root){
+    root.innerHTML =
+      '<p class="eyebrow">Kapitel 2 — Ich und Du</p>' +
+      '<p class="story">Wenn ich heute darüber nachdenke, wie schnell sich das zwischen uns entwickelt hat, muss ich ehrlich gesagt selbst ein bisschen schmunzeln.</p>' +
+      '<p class="story">Am Anfang war da einfach nur dieses Kennenlernen. Zwei Menschen, die angefangen haben, miteinander zu schreiben, sich zu treffen und langsam herauszufinden, wer der andere eigentlich ist. Und irgendwann wurde aus einem einfachen „Mal schauen, was daraus wird" etwas, das sich für mich plötzlich ganz anders angefühlt hat.</p>' +
+      '<p class="story">Ich habe angefangen, deine Nähe zu genießen. Nicht nur die großen Momente, sondern vor allem die kleinen.</p>' +
+      '<p class="story">Die Abende, an denen wir einfach zusammen waren. Die Momente, in denen wir gekuschelt haben und es eigentlich völlig egal war, wie spät es war oder was um uns herum passiert ist. Einfach du und ich. Deine Nähe, deine Wärme und dieses Gefühl, dass ich gerade genau dort sein möchte.</p>' +
+      '<p class="story">Irgendwann habe ich sogar bei dir geschlafen. Und obwohl das vielleicht nach etwas ganz Normalem klingt, war es für mich irgendwie etwas Besonderes. Mit dir einzuschlafen, morgens neben dir aufzuwachen und dich einfach bei mir zu haben — das waren genau diese kleinen Momente, die sich viel größer angefühlt haben, als sie eigentlich waren.</p>' +
+      '<p class="story">Ich habe dich dabei von immer mehr Seiten kennengelernt. Ich habe dich lachen sehen, dich glücklich erlebt, dich manchmal etwas verrückt erlebt — und ich durfte dich sogar zum ersten Mal richtig betrunken sehen. 😄</p>' +
+      '<p class="story">Und genau das fand ich irgendwie schön.</p>' +
+      '<p class="story">Dich nicht nur in deiner besten Version kennenzulernen, sondern einfach dich. Mit all deinen kleinen Eigenheiten, deiner Art und deinen Momenten, in denen du vielleicht selbst gar nicht merkst, wie süß du eigentlich bist.</p>' +
+      '<p class="story">Was mir besonders im Kopf geblieben ist, ist diese unglaubliche Vertrautheit zwischen uns. Obwohl wir uns eigentlich noch gar nicht so lange kannten, hat es sich an manchen Stellen schon so selbstverständlich angefühlt, als würden wir uns viel länger kennen.</p>' +
+      '<p class="story">Wir waren liebevoll miteinander. Wir haben gelacht, gekuschelt, geredet und einfach unsere Zeit miteinander genossen.</p>' +
+      '<p class="story">Und während all diese kleinen Momente passiert sind, habe ich irgendwann gemerkt, dass ich nicht mehr nur gespannt darauf war, dich wiederzusehen.</p>' +
+      '<p class="story">Ich habe mich darauf gefreut.</p>' +
+      '<p class="story">Auf deine Nachrichten. Auf deine Nähe. Auf deine Stimme. Auf dein Lachen. Auf die Momente, in denen ich dich einfach nur anschauen konnte und mir dachte, wie schön es eigentlich ist, dass wir uns gefunden haben.</p>' +
+      '<p class="story">Vielleicht waren es für dich einfach nur ein paar schöne Tage.</p>' +
+      '<p class="story">Für mich waren es die ersten Seiten von etwas, von dem ich damals noch gar nicht wusste, wie wichtig es einmal für mich werden könnte.</p>' +
+      '<p class="story">Und genau deshalb erinnere ich mich so gerne daran zurück.</p>' +
+      '<p class="story">An uns.</p>' +
+      '<p class="story">An diese ersten gemeinsamen Momente.</p>' +
+      '<p class="story">An Ich und Du.</p>' +
+      '<p class="note" style="font-size:.76rem">Jaaa, der Esel nennt sich zuerst.</p>' +
+      '<button class="btn btn-primary btn-next" id="toCh3">Weiter</button>';
+    root.querySelector('#toCh3').addEventListener('click', function(){ goTo(3); });
+  }
+
+  /* ================= 3. du ================= */
+  function renderChapter3(root){
+    var lines = [
+      'Jetzt geht es einmal nur um dich.',
+      'Nicht um unsere Geschichte. Nicht darum, wie wir uns kennengelernt haben und auch nicht darum, was irgendwann einmal aus uns werden könnte.',
+      'Einfach nur um dich.',
+      'Ich glaube, du weißt selbst gar nicht, wie besonders du bist.',
+      'Und vielleicht ist genau das eines der Dinge, die ich so an dir liebe. Du versuchst gar nicht, jemand Besonderes zu sein. Du bist einfach du. Und genau das reicht vollkommen.',
+      'Du hast eine Art an dir, die man nicht wirklich erklären kann. Es ist nicht nur dein Aussehen, auch wenn ich dir wahrscheinlich tausendmal sagen könnte, wie wunderschön ich dich finde. Es ist vielmehr die Art, wie du bist. Wie du redest. Wie du lachst. Wie du mich anschaust. Wie du dich über kleine Dinge freust. Wie du manchmal irgendwelche Sachen erzählst und dabei wahrscheinlich gar nicht merkst, wie süß du eigentlich bist.',
+      'Ich könnte dir wahrscheinlich stundenlang zuhören.',
+      'Und selbst wenn du mir etwas erzählst, das für dich völlig alltäglich ist, höre ich dir trotzdem gerne zu. Einfach, weil es du bist.',
+      'Du bist ein Mensch mit unglaublich viel Herz.',
+      'Und genau das merkt man.',
+      'Du hast in deinem Leben schon Menschen kennengelernt, die dieses Herz nicht verdient haben. Menschen, die dir Dinge versprochen oder vorgespielt haben, die am Ende nicht echt waren. Menschen, die dich enttäuscht und verletzt haben.',
+      'Und trotzdem bist du nicht kalt geworden.',
+      'Du bist immer noch liebevoll.',
+      'Du kümmerst dich.',
+      'Du machst dir Gedanken.',
+      'Du möchtest wissen, ob es dem Menschen, der dir wichtig ist, wirklich gut geht.',
+      'Manchmal vielleicht sogar ein bisschen zu sehr.',
+      'Ich glaube, ich werde nie vergessen, wie oft du mich fragst, ob wirklich alles okay ist, nur weil ich einmal etwas anders schaue als sonst.',
+      'Und jedes Mal könnte ich dir eigentlich einfach sagen:',
+      '„Ja. Alles ist okay. Du bist gerade einfach nur neben mir."',
+      'Denn manchmal brauchst du gar nichts zu verändern oder zu reparieren.',
+      'Du musst nicht ständig Angst haben, dass etwas passiert ist.',
+      'Du musst nicht jedes Wort von mir analysieren.',
+      'Du musst nicht überlegen, ob ich plötzlich anders über dich denke.',
+      'Du musst einfach nur wissen, dass du mir wichtig bist.',
+      'Sehr wichtig.',
+      'Und vielleicht ist das etwas, das du irgendwann noch lernen musst:',
+      'Dass nicht jeder Mensch kommt, um dir weh zu tun.',
+      'Dass nicht jeder Mensch dir etwas vorspielt.',
+      'Dass nicht jede Nähe irgendwann in Enttäuschung endet.',
+      'Ich kann dir deine Vergangenheit nicht wegnehmen.',
+      'Ich kann nicht ungeschehen machen, was andere Menschen dir angetan haben.',
+      'Aber ich kann dir zeigen, dass du es verdient hast, anders behandelt zu werden.',
+      'Du hast es verdient, dass jemand bleibt.',
+      'Dass jemand ehrlich mit dir ist.',
+      'Dass jemand dich nicht nur dann liebt, wenn alles einfach ist.',
+      'Dass jemand deine kleinen Macken genauso gern hat wie deine schönsten Seiten.',
+      'Dass jemand dich anschaut und nicht darüber nachdenkt, was er noch Besseres finden könnte, sondern sich einfach denkt:',
+      '„Verdammt, was habe ich für ein Glück mit dieser Frau."',
+      'Und genau so denke ich manchmal über dich.',
+      'Du bist für mich nicht einfach nur hübsch.',
+      'Du bist auf eine Art schön, die viel tiefer geht.',
+      'Es gibt Momente, da schaue ich dich einfach an und denke mir, dass ich wahrscheinlich gar nicht oft genug zu dir sage, wie schön du wirklich bist.',
+      'Nicht nur dein Gesicht.',
+      'Nicht nur deine Augen.',
+      'Nicht nur dein Lächeln.',
+      'Du als Ganzes.',
+      'Deine Persönlichkeit.',
+      'Deine Wärme.',
+      'Deine Art, jemanden an dich heranzulassen.',
+      'Deine Stärke.',
+      'Aber auch deine verletzliche Seite.',
+      'Die Seite, die vielleicht manchmal Angst bekommt.',
+      'Die Seite, die sich Gedanken macht.',
+      'Die Seite, die vielleicht manchmal nicht weiß, ob sie einem Menschen wirklich vertrauen kann.',
+      'Auch diese Seite liebe ich.',
+      'Denn sie macht dich nicht schwach.',
+      'Sie macht dich menschlich.',
+      'Und wenn ich dich irgendwann einmal wirklich glücklich machen kann, dann hoffe ich, dass du dich bei mir irgendwann so sicher fühlst, dass du diese Seite nicht mehr verstecken musst.',
+      'Dass du nicht mehr das Gefühl hast, immer stark sein zu müssen.',
+      'Dass du dich einfach fallen lassen kannst.',
+      'Bei mir.',
+      'Du sollst lachen können, bis dir der Bauch wehtut.',
+      'Du sollst mit mir albern sein können.',
+      'Du sollst mir von Dingen erzählen können, die sonst niemand weiß.',
+      'Du sollst neben mir einschlafen können, ohne dir Gedanken machen zu müssen, was morgen sein könnte.',
+      'Du sollst mich ansehen können und wissen, dass ich dich genauso meine, wie ich es sage.',
+      'Und wenn du irgendwann einen schlechten Tag hast, möchte ich nicht, dass du denkst, du wärst deshalb weniger schön oder weniger liebenswert.',
+      'Dann möchte ich einfach neben dir sein.',
+      'Dich in den Arm nehmen.',
+      'Und dir zeigen, dass du auch an deinen schlechtesten Tagen immer noch genau die Frau bist, die ich so unglaublich gerne bei mir habe.',
+      'Ich liebe deine Nähe.',
+      'Ich liebe deinen Duft.',
+      'Ich liebe es, wenn du dich an mich kuschelst.',
+      'Ich liebe diese kleinen Momente, in denen du vielleicht gar nichts Besonderes machst und ich dich trotzdem einfach nur anschauen möchte.',
+      'Und ich liebe es, dass du mittlerweile so selbstverständlich einen Platz in meinem Kopf und in meinem Alltag einnimmst.',
+      'Manchmal denke ich über dich nach und muss einfach lächeln.',
+      'Nicht, weil irgendetwas Besonderes passiert ist.',
+      'Sondern einfach, weil es dich gibt.',
+      'Und vielleicht ist das eines der schönsten Dinge, die ich dir sagen kann.',
+      'Du musst nichts leisten, um mir zu gefallen.',
+      'Du musst mich nicht beeindrucken.',
+      'Du musst nicht versuchen, die perfekte Frau zu sein.',
+      'Sei einfach du.',
+      'Denn genau dieses Mädchen habe ich kennengelernt.',
+      'Genau dieses Mädchen hat mich verzaubert.',
+      'Und genau dieses Mädchen möchte ich immer besser kennenlernen.',
+      'Ich hoffe, dass du irgendwann genauso viel Schönes in dir sehen kannst, wie ich es in dir sehe.',
+      'Dass du dich irgendwann selbst mit den Augen betrachten kannst, mit denen ich dich sehe.',
+      'Dann würdest du wahrscheinlich verstehen, warum ich manchmal einfach nur neben dir sitze und dich anschaue.',
+      'Warum ich deine Nähe so sehr genieße.',
+      'Warum ich dein Lachen liebe.',
+      'Warum ich mich über jede Kleinigkeit von dir freue.',
+      'Warum ich dich vermisse, obwohl du vielleicht gerade erst gegangen bist.',
+      'Und warum ich manchmal gar nicht die richtigen Worte finde, um dir zu erklären, was du in mir auslöst.',
+      'Denn die Wahrheit ist:',
+      'Du bist nicht einfach irgendein Mädchen, das ich kennengelernt habe.',
+      'Du bist jemand, bei dem ich mir wünsche, dass sie bleibt.',
+      'Jemand, dessen Vergangenheit ich nicht verurteile, sondern verstehen möchte.',
+      'Jemand, dessen Ängste ich nicht belächle, sondern ernst nehmen möchte.',
+      'Jemand, dessen Herz ich nicht verletzen möchte, sondern beschützen möchte.',
+      'Und jemand, bei dem ich hoffe, dass ich irgendwann der Grund dafür sein darf, dass sie wieder vollkommen an Liebe glauben kann.',
+      'Vielleicht weißt du heute noch gar nicht, welchen Platz du in meinem Leben bekommen hast.',
+      'Vielleicht bist du dir manchmal sogar unsicher, was ich wirklich für dich empfinde.',
+      'Aber wenn du irgendwann einmal daran zweifelst, dann möchte ich, dass du dich an dieses Kapitel erinnerst.',
+      'Denn ich habe es nicht geschrieben, weil ich musste.',
+      'Ich habe es geschrieben, weil ich dir einmal sagen wollte, was ich vielleicht im Alltag nicht oft genug ausspreche:',
+      'Ich finde dich wunderschön.',
+      'Ich bewundere dich.',
+      'Ich liebe deine Art.',
+      'Ich liebe deine Nähe.',
+      'Ich liebe dein Herz.',
+      'Und vor allem liebe ich eines:',
+      'Dass du genau du bist.',
+      'Bitte versuche niemals, jemand anderes sein zu wollen.',
+      'Denn das Mädchen, das gerade diese Worte liest, ist genau das Mädchen, in das ich mich verliebt habe.',
+      'Und ich würde sie gegen niemanden auf dieser Welt eintauschen.'
+    ];
+    var html = '<p class="eyebrow">Kapitel 3 — DU</p>';
+    lines.forEach(function(line){ html += '<p class="story">' + line + '</p>'; });
+    html += '<button class="btn btn-primary btn-next" id="toCh4">Weiter</button>';
+    root.innerHTML = html;
+    root.querySelector('#toCh4').addEventListener('click', function(){ goTo(4); });
+  }
+
+  /* ================= 4. quiz ================= */
+  var QUIZ = [
+    {
+      q: 'Was für ein Geschenk hatte ich erwähnt?',
+      options: ['Goldkette', 'Optigrill', 'Ring'],
+      correct: 2,
+      reaction: 'Richtig. Ring.',
+      wrongReaction: 'Nee, nochmal überlegen.'
+    },
+    {
+      q: 'Wie würdest du Laura bezeichnen?',
+      options: ['Hexe', 'Badddieee', 'AruaL'],
+      correct: 1,
+      reaction: 'Richtig. Badddieee.',
+      wrongReaction: 'Nee, nochmal überlegen.'
+    },
+    {
+      q: 'Was denkst du, wie sehr mag ich dich?',
+      options: ['Geht so', 'Naja', 'Könnte mehr sein'],
+      correct: -1,
+      hiddenInfinity: true,
+      reaction: 'Gefunden. ∞.',
+      wrongReaction: 'Nicht ganz. Schau genauer hin.'
+    }
+  ];
+
+  /* a tiny, barely-visible ∞ tucked into the corner of the card — the real answer to question 3 */
+  function removeHiddenInfinity(){
+    var el = document.getElementById('hiddenInfinity');
+    if (el) el.remove();
+  }
+  function addHiddenInfinity(onFound){
+    var book = document.querySelector('.book');
+    if (!book) return;
+    var el = document.createElement('button');
+    el.id = 'hiddenInfinity';
+    el.type = 'button';
+    el.tabIndex = -1;
+    el.setAttribute('aria-hidden', 'true');
+    el.className = 'hidden-infinity';
+    el.innerHTML = '<span class="glyph">∞</span>';
+    el.addEventListener('click', function(){
+      el.remove();
+      onFound();
+    });
+    book.appendChild(el);
+  }
+
+  function renderQuiz(root, qi){
+    qi = qi || 0;
+    var item = QUIZ[qi];
+    root.innerHTML =
+      '<p class="eyebrow">Zwischenspiel — Quiz: Wie gut kennst du mich?</p>' +
+      '<p class="story">' + item.q + '</p>' +
+      '<div class="quiz-options" id="opts"></div>' +
+      '<p class="reaction" id="reaction"></p>';
+    var opts = root.querySelector('#opts');
+    var reaction = root.querySelector('#reaction');
+    item.options.forEach(function(label, i){
+      var b = document.createElement('button');
+      b.className = 'btn';
+      b.textContent = label;
+      b.addEventListener('click', function(){
+        if (typeof item.correct === 'number' && i !== item.correct){
+          reaction.textContent = item.wrongReaction || 'Nicht ganz — versuch\'s nochmal.';
+          return;
+        }
+        Array.prototype.forEach.call(opts.children, function(c){ c.disabled = true; });
+        reaction.textContent = item.reaction;
+        after(function(){
+          if (qi < QUIZ.length - 1){
+            renderQuiz(root, qi + 1);
+          } else {
+            goTo(5);
+          }
+        }, 850);
+      });
+      opts.appendChild(b);
+    });
+
+    if (item.hiddenInfinity){
+      addHiddenInfinity(function(){
+        Array.prototype.forEach.call(opts.children, function(c){ c.disabled = true; });
+        reaction.textContent = item.reaction;
+        after(function(){
+          if (qi < QUIZ.length - 1){
+            renderQuiz(root, qi + 1);
+          } else {
+            goTo(5);
+          }
+        }, 850);
+      });
+    }
+  }
+
+  /* ================= 5. herzen sammeln ================= */
+  function renderHeartGame(root){
+    if (reduceMotion){ return renderHeartGameStatic(root); }
+
+    root.innerHTML =
+      '<p class="eyebrow">Zwischenspiel — Herzen sammeln</p>' +
+      '<p class="story">8 Sekunden, so viele Herzen wie möglich einsammeln. Los geht\'s.</p>' +
+      '<div class="game-area" id="gameArea"></div>' +
+      '<p class="score-line" id="scoreLine">0 Herzen</p>';
+
+    var area = root.querySelector('#gameArea');
+    var scoreLine = root.querySelector('#scoreLine');
+    var score = 0;
+    var areaRect = area.getBoundingClientRect();
+
+    function spawnHeart(){
+      var h = document.createElement('button');
+      h.className = 'falling-heart';
+      h.textContent = ['💛','💫','✨','💖'][Math.floor(Math.random()*4)];
+      var maxLeft = Math.max(area.clientWidth - 30, 10);
+      h.style.left = (Math.random()*maxLeft) + 'px';
+      var duration = 2.4 + Math.random()*1.2;
+      h.style.animationDuration = duration.toFixed(2) + 's';
+      h.addEventListener('animationend', function(){ h.remove(); });
+      h.addEventListener('click', function(e){
+        score++;
+        scoreLine.textContent = score + ' Herz' + (score === 1 ? '' : 'en');
+        burstFromEvent(e, '💛', 3);
+        h.remove();
+      });
+      area.appendChild(h);
+    }
+
+    every(spawnHeart, 500);
+    after(function(){
+      clearTimers();
+      Array.prototype.forEach.call(area.querySelectorAll('.falling-heart'), function(h){ h.remove(); });
+      renderHeartResult(root, score);
+    }, 8000);
+  }
+
+  function renderHeartGameStatic(root){
+    root.innerHTML =
+      '<p class="eyebrow">Zwischenspiel — Herzen sammeln</p>' +
+      '<p class="story">Klick ein paar Herzen an, dann geht\'s weiter.</p>' +
+      '<div class="static-grid" id="grid"></div>' +
+      '<p class="score-line" id="scoreLine">0 Herzen</p>' +
+      '<button class="btn btn-primary btn-next" id="toRecap">Weiter</button>';
+    var grid = root.querySelector('#grid');
+    var scoreLine = root.querySelector('#scoreLine');
+    var score = 0;
+    for (var i = 0; i < 12; i++){
+      var cell = document.createElement('button');
+      cell.className = 'static-heart';
+      cell.textContent = '💛';
+      cell.addEventListener('click', function(){
+        if (this.classList.contains('popped')) return;
+        this.classList.add('popped');
+        score++;
+        scoreLine.textContent = score + ' Herz' + (score === 1 ? '' : 'en');
+      });
+      grid.appendChild(cell);
+    }
+    root.querySelector('#toRecap').addEventListener('click', function(){ goTo(6); });
+  }
+
+  var HEART_LINES = [
+    'Du hast ein Lächeln, das ich einfach nicht ignorieren kann.',
+    'Bei dir vergesse ich komplett, was ich eigentlich sagen wollte.',
+    'Deine Sommersprossen sind mein Lieblingsdetail an dir.',
+    'Wenn du lachst, lache ich automatisch mit.',
+    'Du bist viel besonderer, als du selbst glaubst.',
+    'Bei dir fühlt sich alles irgendwie richtig an.',
+    'Ich könnte dir stundenlang zuhören.',
+    'Du machst selbst die langweiligsten Momente schön.',
+    'Dein Lachen ist mein neues Lieblingsgeräusch.',
+    'Ich grinse wie ein Idiot, wenn ich an dich denke.',
+    'Bei dir ist mein Bein garantiert am Wackeln.',
+    'Du bist der Grund, warum ich ständig aufs Handy schaue.',
+    'Mit dir ist selbst Nichtstun das Beste, was ich machen kann.',
+    'Ich mag, wie du die Welt siehst.',
+    'Du bist einfach... du. Und das reicht mir komplett.',
+    'Jedes Herz hier steht für einen Grund, warum ich dich mag.'
+  ];
+
+  function renderHeartResult(root, score){
+    var html =
+      '<p class="eyebrow">Ergebnis</p>' +
+      '<p class="story">' + score + ' Herz' + (score === 1 ? '' : 'en') + ' eingesammelt.</p>';
+    if (score === 0){
+      html += '<p class="story">Kein Herz erwischt? Macht nichts — ich mag dich trotzdem.</p>';
+    } else {
+      for (var i = 0; i < score; i++){
+        html += '<p class="story">💛 ' + HEART_LINES[i % HEART_LINES.length] + '</p>';
+      }
+    }
+    html += '<button class="btn btn-primary btn-next" id="toRecap">Weiter</button>';
+    root.innerHTML = html;
+    root.querySelector('#toRecap').addEventListener('click', function(){ goTo(6); });
+  }
+
+  /* ================= 6. 4 gewinnt gegen mich ================= */
+  var CF_ROWS = 6, CF_COLS = 7;
+  function cfIdx(row, col){ return row * CF_COLS + col; }
+  function cfEmptyBoard(){ return new Array(CF_ROWS * CF_COLS).fill(0); }
+  function cfDrop(board, col, player){
+    for (var r = CF_ROWS - 1; r >= 0; r--){
+      if (board[cfIdx(r, col)] === 0){ board[cfIdx(r, col)] = player; return r; }
+    }
+    return -1;
+  }
+  function cfValidCols(board){
+    var cols = [];
+    for (var c = 0; c < CF_COLS; c++){ if (board[cfIdx(0, c)] === 0) cols.push(c); }
+    return cols;
+  }
+  function cfIsFull(board){ return cfValidCols(board).length === 0; }
+  function cfCheckWin(board, player){
+    for (var r = 0; r < CF_ROWS; r++){
+      for (var c = 0; c < CF_COLS; c++){
+        if (board[cfIdx(r, c)] !== player) continue;
+        if (c <= CF_COLS - 4 && board[cfIdx(r, c+1)] === player && board[cfIdx(r, c+2)] === player && board[cfIdx(r, c+3)] === player) return true;
+        if (r <= CF_ROWS - 4 && board[cfIdx(r+1, c)] === player && board[cfIdx(r+2, c)] === player && board[cfIdx(r+3, c)] === player) return true;
+        if (r <= CF_ROWS - 4 && c <= CF_COLS - 4 && board[cfIdx(r+1, c+1)] === player && board[cfIdx(r+2, c+2)] === player && board[cfIdx(r+3, c+3)] === player) return true;
+        if (r <= CF_ROWS - 4 && c >= 3 && board[cfIdx(r+1, c-1)] === player && board[cfIdx(r+2, c-2)] === player && board[cfIdx(r+3, c-3)] === player) return true;
+      }
+    }
+    return false;
+  }
+  function cfEvalWindow(cells, player){
+    var opp = player === 1 ? 2 : 1;
+    var cp = 0, co = 0, ce = 0;
+    cells.forEach(function(v){ if (v === player) cp++; else if (v === opp) co++; else ce++; });
+    if (cp === 4) return 1000;
+    if (cp === 3 && ce === 1) return 6;
+    if (cp === 2 && ce === 2) return 2;
+    if (co === 3 && ce === 1) return -5;
+    return 0;
+  }
+  function cfScore(board, player){
+    var score = 0, r, c;
+    for (r = 0; r < CF_ROWS; r++){ if (board[cfIdx(r, 3)] === player) score += 3; }
+    for (r = 0; r < CF_ROWS; r++){ for (c = 0; c < CF_COLS - 3; c++){
+      score += cfEvalWindow([board[cfIdx(r,c)],board[cfIdx(r,c+1)],board[cfIdx(r,c+2)],board[cfIdx(r,c+3)]], player);
+    }}
+    for (c = 0; c < CF_COLS; c++){ for (r = 0; r < CF_ROWS - 3; r++){
+      score += cfEvalWindow([board[cfIdx(r,c)],board[cfIdx(r+1,c)],board[cfIdx(r+2,c)],board[cfIdx(r+3,c)]], player);
+    }}
+    for (r = 0; r < CF_ROWS - 3; r++){ for (c = 0; c < CF_COLS - 3; c++){
+      score += cfEvalWindow([board[cfIdx(r,c)],board[cfIdx(r+1,c+1)],board[cfIdx(r+2,c+2)],board[cfIdx(r+3,c+3)]], player);
+    }}
+    for (r = 3; r < CF_ROWS; r++){ for (c = 0; c < CF_COLS - 3; c++){
+      score += cfEvalWindow([board[cfIdx(r,c)],board[cfIdx(r-1,c+1)],board[cfIdx(r-2,c+2)],board[cfIdx(r-3,c+3)]], player);
+    }}
+    return score;
+  }
+  function cfMinimax(board, depth, alpha, beta, maximizing){
+    var validCols = cfValidCols(board);
+    if (cfCheckWin(board, 2)) return { score: 1000000 };
+    if (cfCheckWin(board, 1)) return { score: -1000000 };
+    if (validCols.length === 0) return { score: 0 };
+    if (depth === 0) return { score: cfScore(board, 2) };
+    var order = [3,2,4,1,5,0,6].filter(function(c){ return validCols.indexOf(c) !== -1; });
+    if (maximizing){
+      var best = -Infinity, bestCol = order[0];
+      for (var i = 0; i < order.length; i++){
+        var b2 = board.slice(); cfDrop(b2, order[i], 2);
+        var res = cfMinimax(b2, depth - 1, alpha, beta, false);
+        if (res.score > best){ best = res.score; bestCol = order[i]; }
+        alpha = Math.max(alpha, best);
+        if (alpha >= beta) break;
+      }
+      return { score: best, col: bestCol };
+    } else {
+      var worst = Infinity, worstCol = order[0];
+      for (var j = 0; j < order.length; j++){
+        var b3 = board.slice(); cfDrop(b3, order[j], 1);
+        var res2 = cfMinimax(b3, depth - 1, alpha, beta, true);
+        if (res2.score < worst){ worst = res2.score; worstCol = order[j]; }
+        beta = Math.min(beta, worst);
+        if (alpha >= beta) break;
+      }
+      return { score: worst, col: worstCol };
+    }
+  }
+
+  function renderConnectFour(root){
+    var board = cfEmptyBoard();
+    var over = false;
+    root.innerHTML =
+      '<p class="eyebrow">Zwischenspiel — 4 Gewinnt</p>' +
+      '<p class="story">Du gegen mich. Du fängst an.</p>' +
+      '<div class="cf-board" id="cfBoard"></div>' +
+      '<p class="reaction" id="cfMsg"></p>';
+    var boardEl = root.querySelector('#cfBoard');
+    var msg = root.querySelector('#cfMsg');
+
+    function draw(){
+      var html = '';
+      for (var r = 0; r < CF_ROWS; r++){
+        for (var c = 0; c < CF_COLS; c++){
+          var v = board[cfIdx(r, c)];
+          var cls = 'cf-cell' + (v === 1 ? ' cf-her' : v === 2 ? ' cf-bot' : '');
+          html += '<button class="' + cls + '" data-col="' + c + '" ' + (over ? 'disabled' : '') + '></button>';
+        }
+      }
+      boardEl.innerHTML = html;
+      Array.prototype.forEach.call(boardEl.querySelectorAll('.cf-cell'), function(cell){
+        cell.addEventListener('click', onCellClick);
+      });
+    }
+
+    function onCellClick(e){
+      if (over) return;
+      var col = parseInt(e.currentTarget.getAttribute('data-col'), 10);
+      if (cfValidCols(board).indexOf(col) === -1) return;
+      cfDrop(board, col, 1);
+      draw();
+      if (cfCheckWin(board, 1)){ over = true; return finish(true); }
+      if (cfIsFull(board)){ over = true; return finish(null); }
+      Array.prototype.forEach.call(boardEl.querySelectorAll('.cf-cell'), function(cell){ cell.disabled = true; });
+      msg.textContent = 'Ich überleg kurz …';
+      after(function(){
+        var botCol = cfMinimax(board, 5, -Infinity, Infinity, true).col;
+        cfDrop(board, botCol, 2);
+        draw();
+        msg.textContent = '';
+        if (cfCheckWin(board, 2)){ over = true; return finish(false); }
+        if (cfIsFull(board)){ over = true; return finish(null); }
+      }, 550);
+    }
+
+    function finish(herWin){
+      var text;
+      if (herWin === true){ text = 'Du hast gewonnen. Ehrlich beeindruckt.'; }
+      else if (herWin === false){ text = 'Verloren. Aber dafür hast du jetzt trotzdem mich. 💛'; }
+      else { text = 'Unentschieden. Nächstes Mal gewinnt jemand.'; }
+      msg.innerHTML = text + '<br><button class="btn btn-primary btn-next" id="cfNext" style="margin-top:10px">Weiter</button>';
+      msg.querySelector('#cfNext').addEventListener('click', function(){ goTo(7); });
+    }
+
+    draw();
+  }
+
+  /* ================= 7. zwischenstand ================= */
+  var RECAP_LINES = [
+    'Bis hierhin könnte man sagen:',
+    'Wir haben uns kennengelernt, gelacht, gekuschelt, uns immer näher kennengelernt und dabei wahrscheinlich mehr Gefühle entwickelt, als wir anfangs zugeben wollten.',
+    'Es gab süße Momente, ein bisschen Chaos, ganz viel Nähe und natürlich auch den ein oder anderen Moment, bei dem wir beide wahrscheinlich dachten: „Was machen wir hier eigentlich?" 😄',
+    'Aber wenn ich ehrlich bin, brauche ich gar keine Beweise oder Statistiken.',
+    'Denn eines steht für mich sowieso fest:',
+    'Du bist etwas ganz Besonderes.',
+    'Du bist viel wundervoller, liebevoller und einzigartiger, als du selbst manchmal glaubst.',
+    'Und falls du das zwischendurch mal vergisst, ist das hier vielleicht genau die kleine Erinnerung daran:',
+    'Du bist toll. Genau so, wie du bist.'
+  ];
+
+  function renderRecap(root){
+    var html = '<p class="eyebrow">Zwischenstand</p>';
+    RECAP_LINES.forEach(function(line){
+      html += '<p class="story">' + line + '</p>';
+    });
+    html += '<button class="btn btn-primary btn-next" id="toWarn">Weiter</button>';
+    root.innerHTML = html;
+    root.querySelector('#toWarn').addEventListener('click', function(){ goTo(8); });
+  }
+
+  /* ================= 8. bist du sicher? ================= */
+  var SURE_STEPS = [
+    ['Bist du dir sicher, dass du fortfahren möchtest?'],
+    ['Du hast „Ja" gewählt…', 'Bist du dir wirklich sicher?'],
+    ['Interessant.', 'Dann hast du offenbar keine Angst davor herauszufinden, was als Nächstes kommt.', 'Weiter?'],
+    ['Noch kannst du umdrehen.', 'Später wird das vielleicht nicht mehr so einfach sein.', 'Bist du sicher?'],
+    ['Du bist erstaunlich hartnäckig.', 'Aber weißt du überhaupt, worauf du dich hier einlässt?', 'Weiter?'],
+    ['Okay…', 'Wenn du jetzt weitermachst, erfährst du etwas, das bisher nur sehr wenige Menschen wissen.', 'Wirklich weiter?'],
+    ['Du hast es bis hierhin geschafft.', 'Aber irgendwie habe ich das Gefühl, dass du mittlerweile selbst wissen möchtest, was dahinter steckt.', 'Bist du sicher?'],
+    ['Vielleicht hätte ich dir vorher sagen sollen, dass diese Geschichte nicht ganz so endet, wie du gerade denkst.', 'Trotzdem weiter?'],
+    ['Fast geschafft.', 'Nur noch eine Entscheidung.', 'Und vielleicht ist genau die nächste Seite der Grund, warum du überhaupt bis hierhin gekommen bist.', 'Sicher?'],
+    ['Dann gibt es jetzt kein Zurück mehr.', 'Du hast dich zehnmal dafür entschieden, weiterzugehen.', 'Also gut.', 'Schauen wir, was dich dahinter erwartet…']
+  ];
+
+  var SURE_ERRORS = [
+    'Fehler: Diese Option ist in dieser Version nicht verfügbar.',
+    'Fehler 404: Antwort „Nein" wurde nicht gefunden.',
+    'Fehler: Vorgang abgebrochen. Es gibt nur eine Richtung: weiter.',
+    'Fehler: Diese Aktion wurde blockiert.'
+  ];
+
+  function renderSureStep(root, i){
+    if (i >= SURE_STEPS.length){ return renderPreQuestionIntro(root); }
+    var html =
+      '<p class="eyebrow">Kurz vorher (' + (i + 1) + '/' + SURE_STEPS.length + ')</p>';
+    SURE_STEPS[i].forEach(function(line){
+      html += '<p class="story">' + line + '</p>';
+    });
+    html +=
+      '<div class="choices" id="choiceRow">' +
+        '<button class="btn btn-primary" id="sureYes">Ja</button>' +
+        '<button class="btn btn-ghost" id="sureNo">Nein</button>' +
+      '</div>' +
+      '<p id="sureError"></p>';
+    root.innerHTML = html;
+    root.querySelector('#sureYes').addEventListener('click', function(){
+      renderSureStep(root, i + 1);
+    });
+    root.querySelector('#sureNo').addEventListener('click', function(){
+      var box = root.querySelector('#sureError');
+      box.innerHTML = '<span class="error-box">' + SURE_ERRORS[Math.floor(Math.random() * SURE_ERRORS.length)] + '</span>';
+    });
+  }
+
+  function renderPreQuestionIntro(root){
+    root.innerHTML =
+      '<p class="eyebrow">Kurz vorher</p>' +
+      '<p class="story">Ich wollte dich etwas fragen...</p>' +
+      '<p class="story">Keine Ahnung, warum ich dafür extra ein ganzes Spiel gebaut habe, anstatt es einfach zu sagen.</p>' +
+      '<p class="story">Aber jetzt ist es so weit.</p>' +
+      '<button class="btn btn-primary btn-next" id="toQuestion">Weiter</button>';
+    root.querySelector('#toQuestion').addEventListener('click', function(){ goTo(9); });
+  }
+
+  function renderSuspense(root){
+    renderSureStep(root, 0);
+  }
+
+  /* ================= 9. die frage ================= */
+  var taunts = [
+    'Der will gerade nicht so wirklich.',
+    'Er rennt lieber weg, ehrlich gesagt.',
+    'Vielleicht einfach den anderen nehmen?',
+    'Er tut immer noch so, als hätte er eine Chance.'
+  ];
+
+  function renderQuestion(root){
+    if (state.answered){ return renderCelebration(root); }
+    root.innerHTML =
+      '<p class="eyebrow">Die Frage</p>' +
+      '<h2 style="font-size:1.5rem;text-align:center;margin:0;line-height:1.3" class="display">' + NAME_HER + ', willst du meine Freundin sein?</h2>' +
+      '<div class="zone" id="zone">' +
+        '<button class="btn btn-primary" id="btnJa">Ja 💛</button>' +
+        '<button class="btn" id="btnNein">Nein</button>' +
+      '</div>' +
+      '<p class="taunt" id="taunt" aria-live="polite"></p>';
+
+    var zone = root.querySelector('#zone');
+    var nein = root.querySelector('#btnNein');
+    var ja = root.querySelector('#btnJa');
+    var taunt = root.querySelector('#taunt');
+    var dodgeCount = 0;
+
+    function dodge(){
+      var zr = zone.getBoundingClientRect();
+      var br = nein.getBoundingClientRect();
+      var maxX = Math.max(zr.width - br.width - 4, 4);
+      var maxY = Math.max(zr.height - br.height - 4, 4);
+      var x = Math.random() * maxX;
+      var y = Math.random() * maxY;
+      nein.classList.add('roaming');
+      nein.style.left = x + 'px';
+      nein.style.top = y + 'px';
+      taunt.textContent = taunts[dodgeCount % taunts.length];
+      dodgeCount++;
+    }
+
+    nein.addEventListener('pointerenter', function(e){ if (e.pointerType === 'mouse') dodge(); });
+    nein.addEventListener('pointerdown', function(e){
+      if (e.pointerType === 'touch' || e.pointerType === 'pen'){ e.preventDefault(); dodge(); }
+    });
+    nein.addEventListener('focus', function(){ dodge(); });
+    nein.addEventListener('click', function(e){ e.preventDefault(); dodge(); });
+
+    ja.addEventListener('click', function(){
+      state.answered = true;
+      goTo(10);
+    });
+  }
+
+  /* ================= 10. celebration ================= */
+  function renderCelebration(root){
+    root.innerHTML =
+      '<div class="stage celebrate">' +
+        '<h1 class="display">Du hast Ja gesagt. ❤️</h1>' +
+        '<p class="story">Und genau dieses eine kleine Wort bedeutet mir mehr, als du gerade vielleicht denkst.</p>' +
+        '<p class="story">Ich habe dich nicht einfach gefragt, weil es schön klingt. Ich habe dich gefragt, weil du diejenige bist, mit der ich diesen Weg gehen möchte.</p>' +
+        '<p class="story">Du bist für mich etwas Besonderes geworden. Und ab heute darfst du dich ganz offiziell meine Freundin nennen. ❤️</p>' +
+        '<p class="story" style="margin-top:6px">Aber eine kleine Sache fehlt noch…</p>' +
+        '<p class="story">Ich wollte, dass dein „Ja" nicht einfach nur auf einem Bildschirm endet.</p>' +
+        '<p class="display" style="font-size:1.25rem;text-align:center;color:var(--gold);margin:10px 0 2px">Schau einmal in meinen Kofferraum. 🌹</p>' +
+        '<p class="story">Dort wartet noch etwas auf dich. Nur für dich.</p>' +
+        '<p class="story">Weil du es verdient hast, dass man dir nicht nur sagt, wie besonders du bist — sondern es dir auch zeigt.</p>' +
+        '<p class="signature">Auf dich. Auf mich. Auf uns.<br>— ' + NAME_ME + ' 💛</p>' +
+        '<button class="restart" id="again">Nochmal von vorne lesen</button>' +
+      '</div>';
+    root.querySelector('#again').addEventListener('click', function(){
+      state.idx = 0; state.tags = []; state.answered = false;
+      render();
+    });
+    fireConfetti();
+  }
+
+  /* ================= confetti ================= */
+  function fireConfetti(){
+    if (reduceMotion) return;
+    var canvas = document.getElementById('confetti');
+    var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    function size(){
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
+    size();
+    var colors = ['#ffbd5c', '#ff92ad', '#f6efff', '#e6a548'];
+    var pieces = [];
+    for (var i = 0; i < 110; i++){
+      pieces.push({
+        x: Math.random()*window.innerWidth,
+        y: -20 - Math.random()*window.innerHeight*0.5,
+        w: 5 + Math.random()*5,
+        h: 8 + Math.random()*6,
+        rot: Math.random()*Math.PI,
+        vRot: (Math.random()-0.5)*0.22,
+        vy: 2 + Math.random()*2.7,
+        vx: (Math.random()-0.5)*1.8,
+        color: colors[i % colors.length]
+      });
+    }
+    var startT = performance.now();
+    var duration = 3600;
+    function frame(now){
+      var t = now - startT;
+      ctx.clearRect(0,0,window.innerWidth,window.innerHeight);
+      pieces.forEach(function(p){
+        p.x += p.vx; p.y += p.vy; p.rot += p.vRot;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+        ctx.restore();
+      });
+      if (t < duration){ requestAnimationFrame(frame); }
+      else { ctx.clearRect(0,0,window.innerWidth,window.innerHeight); }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  if (window.claude && window.claude.hot && window.claude.hot.ready){
+    window.claude.hot.ready(start);
+  } else {
+    start(window.claude && window.claude.hot ? window.claude.hot.data : null);
+  }
+})();
+</script>
+</body>
+</html>
